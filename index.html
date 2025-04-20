@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Procrastination Timer Deluxe</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+      background: #f5f7fa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      transition: background 0.5s, color 0.5s;
+    }
+
+    .dark {
+      background: #121212;
+      color: #eee;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 2.5rem;
+      animation: bounce 1s;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .timer-circle {
+      position: relative;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0px 5px 30px rgba(0, 0, 0, 0.2);
+      margin-bottom: 20px;
+    }
+
+    .timer-circle span {
+      font-size: 2.8rem;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .buttons button, .toggle-dark {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 25px;
+      background: #6a11cb;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .buttons button:hover, .toggle-dark:hover {
+      background: #2575fc;
+      transform: scale(1.05);
+    }
+
+    .stats {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .quote, .meme {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .quote {
+      padding: 10px 20px;
+      font-size: 1.2rem;
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      display: inline-block;
+      max-width: 80%;
+      animation: fadeIn 1s;
+    }
+
+    .dark .quote {
+      background: #1f1f2e;
+    }
+
+    .meme img {
+      max-width: 300px;
+      margin-top: 10px;
+      border-radius: 10px;
+      animation: fadeIn 1s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .modal-content {
+      background: #fff;
+      padding: 30px;
+      border-radius: 20px;
+      text-align: center;
+      width: 320px;
+    }
+
+    .dark .modal-content {
+      background: #2a2a3b;
+      color: #eee;
+    }
+
+    .modal-content p {
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+
+    /* Dark Toggle */
+    .toggle-dark {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<button class="toggle-dark" onclick="toggleDarkMode()">🌙 Dark</button>
+
+<h1>No More Procrastination⏳</h1>
+
+<div class="stats">
+  <div>🔥 Streak: <span id="streak">0</span></div>
+  <div>🏆 Level: <span id="level">1</span></div>
+</div>
+
+<div class="timer-circle">
+  <span id="timer">25:00</span>
+</div>
+
+<div class="buttons">
+  <button onclick="startTimer()">Start</button>
+  <button onclick="resetTimer()">Reset</button>
+  <button onclick="confirmQuit()">Give Up</button>
+</div>
+
+<div class="quote" id="quoteArea"></div>
+<div class="meme" id="memeArea"></div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="modal">
+  <div class="modal-content">
+    <p>😔 Are you sure you want to quit?
+        (pls say no..)
+    </p>
+    <button onclick="quitConfirmed()">Yes</button>
+    <button onclick="closeModal()">No</button>
+  </div>
+</div>
+
+<!-- Confetti Library -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
+<!-- Sounds -->
+<audio id="startSound" src="https://assets.mixkit.co/sfx/preview/mixkit-game-click-1114.mp3"></audio>
+<audio id="endSound" src="https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.wav"></audio>
+<audio id="quoteSound" src="https://assets.mixkit.co/sfx/preview/mixkit-bonus-earned-in-video-game-2058.wav"></audio>
+
+<script>
+  let workMinutes = 25, seconds = 0;
+  let timerInterval, quoteInterval;
+  let isRunning = false;
+  
+  const quotes = [
+    "Stay focused king/queen 👑",
+    "Every effort counts 💪",
+    "Small steps lead to big changes ",
+    "you are doing great! here's your star🌟",
+    "Discipline > Motivation 🎯",
+    "Winners never quit 🔥",
+    "Progress over perfection 📈"
+  ];
+  const breakSuggestions = [
+  "Stretch your legs 🧘‍♂️",
+  "Grab some water 🚰",
+  "Take a deep breath 🌬️",
+  "Dance for 1 min 🎶",
+  "Step outside for fresh air 🍃",
+  "Pet a cat/dog 🐶🐱",
+  "Power nap for 5 min 😴"
+];
+
+  const memes = [
+    "https://i.imgflip.com/4/4t0m5.jpg",
+    "https://i.imgflip.com/1bij.jpg",
+    "https://i.imgflip.com/26am.jpg",
+    "https://i.imgflip.com/30b1gx.jpg",
+    "https://i.imgflip.com/3si4.jpg"
+  ];
+
+  let streak = parseInt(localStorage.getItem('streak')) || 0;
+  let level = Math.floor(streak / 5) + 1;
+  document.getElementById('streak').innerText = streak;
+  document.getElementById('level').innerText = level;
+
+  function updateDisplay() {
+    const min = String(workMinutes).padStart(2, '0');
+    const sec = String(seconds).padStart(2, '0');
+    document.getElementById('timer').innerText = `${min}:${sec}`;
+  }
+
+  function startTimer() {
+    if (isRunning) return;
+    document.getElementById('startSound').play();
+    isRunning = true;
+
+    timerInterval = setInterval(() => {
+      if (seconds === 0) {
+        if (workMinutes === 0) {
+          clearInterval(timerInterval);
+          clearInterval(quoteInterval);
+          isRunning = false;
+          sessionCompleted();
+        } else {
+          workMinutes--;
+          seconds = 59;
+        }
+      } else {
+        seconds--;
+      }
+      updateDisplay();
+    }, 1000);
+
+    // Random quote every 5 minutes
+    quoteInterval = setInterval(() => {
+      randomQuote();
+    }, 300000);
+  }
+
+  function resetTimer(resetQuote = true) {
+    clearInterval(timerInterval);
+    if (resetQuote) clearInterval(quoteInterval);
+    isRunning = false;
+    workMinutes = 25;
+    seconds = 0;
+    updateDisplay();
+  }
+
+  function randomQuote() {
+    const quote = quotes[Math.floor(Math.random() * quotes.length)];
+    document.getElementById('quoteArea').innerText = quote;
+    document.getElementById('quoteSound').play();
+  }
+
+  function sessionCompleted() {
+  document.getElementById('endSound').play();
+  randomQuote();
+  const meme = memes[Math.floor(Math.random() * memes.length)];
+  document.getElementById('memeArea').innerHTML = `<img src="${meme}" alt="Meme">`;
+
+  // New part: Show break suggestion
+  const suggestion = breakSuggestions[Math.floor(Math.random() * breakSuggestions.length)];
+  document.getElementById('quoteArea').innerHTML += `<br><br><strong>💡 Break Tip:</strong> ${suggestion}`;
+
+  streak++;
+  localStorage.setItem('streak', streak);
+  level = Math.floor(streak / 5) + 1;
+  document.getElementById('streak').innerText = streak;
+  document.getElementById('level').innerText = level;
+  resetTimer(false);
+
+  // Confetti!
+  confetti({
+    particleCount: 150,
+    spread: 70,
+    origin: { y: 0.6 }
+  });
+}
+
+
+  function confirmQuit() {
+    document.getElementById('confirmModal').style.display = 'flex';
+  }
+
+  function closeModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+  }
+
+  function quitConfirmed() {
+    streak = 0;
+    localStorage.setItem('streak', streak);
+    document.getElementById('streak').innerText = 0;
+    document.getElementById('level').innerText = 1;
+    resetTimer();
+    closeModal();
+  }
+
+  function toggleDarkMode() {
+    document.body.classList.toggle('dark');
+  }
+</script>
+
+</body>
+</html>
